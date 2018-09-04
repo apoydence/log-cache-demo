@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+
+function print_usage {
+    echo "Usage: $0 [rh] SourceID"
+    echo " -r raw   - Raw Source ID. Do not try to resolve it."
+    echo " -h help  - Shows this usage."
+}
+
+[ -z "$1" ] && print_usage && exit 1
+
+resolve_sid="true"
+
+while getopts 'rh' flag; do
+  case "${flag}" in
+    r) resolve_sid="false" && shift 1 ;;
+    h) print_usage ; exit 1 ;;
+  esac
+done
+
+export LOG_CACHE_ADDR=$(cat ~/.cf/config.json | jq -r .Target | sed 's|api|log-cache|' | sed 's|https|http|')
+export TOKEN=$(cf oauth-token)
+
+if [ $resolve_sid = "true" ]; then
+    export SOURCE_ID=$(cf app $1 --guid)
+else
+    export SOURCE_ID=$1
+fi
+
+metrics-list

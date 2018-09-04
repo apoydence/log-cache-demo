@@ -10,3 +10,20 @@ functions:
       method: POST
       no_auth: true
 
+#Restart RaaS on high memory
+- handler:
+    app_name: faas-restarter
+    command: |
+      APP_TO_RESTART=raas \
+      ./restarter
+  events:
+    http:
+    - path: /v1/printer
+      method: POST
+      no_auth: true
+    promql:
+    - query: 'memory{source_id="raas"} / memory_quota{source_id="raas"} * 100 > 30'
+      context: "memory is too high"
+    promql:
+    - query: 'cpu{source_id="raas"} > 50'
+      context: "cpu is too high"

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+function print_usage {
+    echo "Usage: $0 [h] [PromQL Query]"
+    echo " -h help  - Shows this usage."
+}
+
+[ -z "$1" ] && print_usage && exit 1
+
+while getopts 'h' flag; do
+  case "${flag}" in
+    h) print_usage ; exit 1 ;;
+  esac
+done
+
+export CAPI_ADDR=$(cat ~/.cf/config.json | jq -r .Target | sed 's|https|http|')
+export SPACE_ID=$(cat ~/.cf/config.json | jq -r .SpaceFields.GUID)
+export LOG_CACHE_ADDR=$(cat ~/.cf/config.json | jq -r .Target | sed 's|api|log-cache|' | sed 's|https|http|')
+export TOKEN=$(cf oauth-token)
+
+promql-plotter $1

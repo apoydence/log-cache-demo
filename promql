@@ -1,0 +1,16 @@
+#!/bin/bash
+
+[ -z "$1" ] && echo "PromQL is required" && exit 1
+
+system_domain=$(cf curl /v2/info | jq -r .token_endpoint | cut -d '/' -f3 | cut -d '.' -f2-)
+log_cache=log-cache.$system_domain
+promql=$log_cache/api/v1/query
+query=$1
+token=$(cf oauth-token)
+
+for source_id in $(promql-parser $query)
+do
+    query=$(echo ${query/$source_id/$(cf app $source_id --guid)})
+done
+
+curl -s -G $promql --data-urlencode "query=$query" -H"Authorization: $token" | jq .
