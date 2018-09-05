@@ -39,14 +39,14 @@ func main() {
 		addTokenDoer{cfg.Token},
 	)
 
-	http.HandleFunc("/", drawChart(query, logCacheClient, log))
-	http.HandleFunc("/favico.ico", func(res http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/", drawChart(query, logCacheClient, cfg, log))
+	http.HandleFunc("/favicon.ico", func(res http.ResponseWriter, req *http.Request) {
 		res.Write([]byte{})
 	})
 	http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), nil)
 }
 
-func drawChart(query string, c *promql.Client, log *log.Logger) func(res http.ResponseWriter, req *http.Request) {
+func drawChart(query string, c *promql.Client, cfg Config, log *log.Logger) func(res http.ResponseWriter, req *http.Request) {
 	return func(res http.ResponseWriter, req *http.Request) {
 		result, err := c.PromQL(req.Context(), query)
 		if err != nil {
@@ -84,10 +84,7 @@ func drawChart(query string, c *promql.Client, log *log.Logger) func(res http.Re
 					log.Panic(err)
 				}
 
-				t := float64(i / 1e9)
-				if len(xValues) != 0 && xValues[len(xValues)-1] >= t {
-					t = xValues[len(xValues)-1] + 1
-				}
+				t := float64(i / 1e6)
 
 				f, err := v[1].Float64()
 				if err != nil {
@@ -100,6 +97,30 @@ func drawChart(query string, c *promql.Client, log *log.Logger) func(res http.Re
 		}
 
 		sort.Sort(xyPair{xValues, yValues})
+
+		for i := 1; i < len(xValues); i++ {
+			for xValues[i-1] >= xValues[i] {
+				xValues[i] += 50
+			}
+		}
+
+		if cfg.PrintNumPoints {
+			log.Printf("Number of Points: %d", len(xValues))
+		}
+
+		style := chart.Style{
+			Show:        true,
+			StrokeColor: chart.ColorBlue,
+			FillColor:   chart.ColorBlue.WithAlpha(100),
+		}
+
+		if cfg.Scatter {
+			style = chart.Style{
+				Show:        true,
+				StrokeWidth: chart.Disabled,
+				DotWidth:    5,
+			}
+		}
 
 		graph := chart.Chart{
 			XAxis: chart.XAxis{
@@ -114,6 +135,7 @@ func drawChart(query string, c *promql.Client, log *log.Logger) func(res http.Re
 			},
 			Series: []chart.Series{
 				chart.ContinuousSeries{
+					Style:   style,
 					XValues: xValues,
 					YValues: yValues,
 				},
@@ -126,11 +148,13 @@ func drawChart(query string, c *promql.Client, log *log.Logger) func(res http.Re
 }
 
 type Config struct {
-	Port         int    `env:"PORT"`
-	LogCacheAddr string `env:"LOG_CACHE_ADDR,required"`
-	CAPIAddr     string `env:"CAPI_ADDR,required"`
-	SpaceID      string `env:"SPACE_ID,required"`
-	Token        string `env:"TOKEN,required"`
+	Port           int    `env:"PORT"`
+	LogCacheAddr   string `env:"LOG_CACHE_ADDR,required"`
+	CAPIAddr       string `env:"CAPI_ADDR,required"`
+	SpaceID        string `env:"SPACE_ID,required"`
+	Token          string `env:"TOKEN,required"`
+	Scatter        bool   `env:"SCATTER_PLOT"`
+	PrintNumPoints bool   `env:"PRINT_NUM_POINTS"`
 }
 
 func LoadConfig(log *log.Logger) Config {

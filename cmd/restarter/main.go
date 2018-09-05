@@ -33,6 +33,7 @@ func main() {
 	log.Printf("resolved %s to %s", cfg.AppToRestart, appGuid)
 
 	faaspromql.Start(faaspromql.HandlerFunc(func(r faaspromql.QueryResult) error {
+		log.Printf("request to restart: %s", r.Context)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		lastEvent, err := capiClient.LastEvent(ctx, appGuid)

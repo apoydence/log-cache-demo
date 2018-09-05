@@ -8,7 +8,7 @@ promql=$log_cache/api/v1/query
 query=$1
 token=$(cf oauth-token)
 
-for source_id in $(promql-parser $query)
+for source_id in $(promql-parser "$query")
 do
     query=$(echo ${query/$source_id/$(cf app $source_id --guid)})
 done

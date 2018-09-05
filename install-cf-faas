@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+pushd ~/workspace/go/src/github.com/apoydence/cf-faas
+  ./scripts/install.sh -a cf-faas -m ../log-cache-demo/manifest.yml -r promql:cf-faas-log-cache.andrew.loggr.cf-app.com
+popd
