@@ -13,4 +13,6 @@ do
     query=$(echo ${query/$source_id/$(cf app $source_id --guid)})
 done
 
-curl -s -G $promql --data-urlencode "query=$query" -H"Authorization: $token" | jq .
+curl -s -G $promql \
+    -H "Authorization: $token" \
+    --data-urlencode "query=$query" | jq .

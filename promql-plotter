@@ -25,4 +25,4 @@ export LOG_CACHE_ADDR=$(cat ~/.cf/config.json | jq -r .Target | sed 's|api|log-c
 export TOKEN=$(cf oauth-token)
 export SCATTER_PLOT=$scatter
 
-promql-plotter $1
+promql-plotter "$@"
