@@ -18,6 +18,7 @@ function fail {
 
 # promql-plotter binary
 echo "building promql-plotter binary..."
+GOOS=linux go get -d ./cmd/promql-plotter &> /dev/null || fail "failed to get/download promql-plotter"
 GOOS=linux go build -o $TEMP_DIR/promql-plotter ./cmd/promql-plotter &> /dev/null || fail "failed to build promql-plotter"
 cp cmd/promql-plotter/run.sh $TEMP_DIR
 echo "done building promql-plotter binary."
