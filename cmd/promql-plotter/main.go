@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
@@ -20,26 +23,21 @@ import (
 
 func main() {
 	log := log.New(os.Stderr, "", 0)
-
-	if len(os.Args) < 2 {
-		log.Fatalf("Usage: %s [PromQL Queries]", os.Args[0])
-	}
-
 	cfg := LoadConfig(log)
 
 	capiClient := gocapi.NewClient(
-		cfg.CAPIAddr,
+		cfg.VcapApplication.CAPIAddr,
 		"",
-		cfg.SpaceID,
-		addTokenDoer{cfg.Token},
+		cfg.VcapApplication.SpaceID,
+		http.DefaultClient,
 	)
 
 	sanitizer := promql.NewSanitizer(capiClient)
 
 	logCacheClient := promql.NewClient(
-		cfg.LogCacheAddr,
+		cfg.VcapApplication.LogCacheAddr,
 		sanitizer,
-		addTokenDoer{cfg.Token},
+		http.DefaultClient,
 	)
 
 	http.HandleFunc("/", drawChart(os.Args[1:], logCacheClient, cfg, log))
@@ -65,6 +63,30 @@ var colorMap = map[drawing.Color]int{
 	chart.ColorBlack:  4,
 }
 
+func createQuery(u *url.URL) (string, error) {
+	values, err := url.ParseQuery(u.RawQuery)
+	if err != nil {
+		return "", err
+	}
+
+	if len(values["source_id"]) != 1 {
+		return "", errors.New("requires a single soursce_id")
+	}
+
+	if len(values["metric"]) != 1 {
+		return "", errors.New("requires a single metric")
+	}
+
+	sourceID, metric := resolveSourceID(values.Get("source_id")), values.Get("metric")
+
+	println(metric, sourceID)
+	return fmt.Sprintf(`%s{source_id="%s"}`, metric, sourceID), nil
+}
+
+func resolveSourceID(sourceID string) string {
+	return sourceID
+}
+
 func drawChart(
 	queries []string,
 	c *promql.Client,
@@ -72,6 +94,18 @@ func drawChart(
 	log *log.Logger,
 ) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
+		queries := queries
+
+		if len(queries) == 0 {
+			q, err := createQuery(req.URL)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			queries = []string{q}
+		}
+
 		now := time.Now()
 
 		results := make(chan struct {
@@ -221,12 +255,26 @@ func drawChart(
 }
 
 type Config struct {
-	Port         int    `env:"PORT"`
-	LogCacheAddr string `env:"LOG_CACHE_ADDR,required"`
-	CAPIAddr     string `env:"CAPI_ADDR,required"`
-	SpaceID      string `env:"SPACE_ID,required"`
-	Token        string `env:"TOKEN,required"`
-	Scatter      bool   `env:"SCATTER_PLOT"`
+	// This is not used, however the CF-Space-Security proxy needs it
+	HttpProxy string `env:"HTTP_PROXY, required"`
+
+	Port    int  `env:"PORT"`
+	Scatter bool `env:"SCATTER_PLOT"`
+
+	VcapApplication VcapApplication `env:"VCAP_APPLICATION, required"`
+}
+
+type VcapApplication struct {
+	CAPIAddr        string `json:"cf_api"`
+	LogCacheAddr    string
+	ApplicationID   string   `json:"application_id"`
+	ApplicationName string   `json:"application_name"`
+	SpaceID         string   `json:"space_id"`
+	ApplicationURIs []string `json:"application_uris"`
+}
+
+func (a *VcapApplication) UnmarshalEnv(data string) error {
+	return json.Unmarshal([]byte(data), a)
 }
 
 func LoadConfig(log *log.Logger) Config {
@@ -238,16 +286,11 @@ func LoadConfig(log *log.Logger) Config {
 		log.Fatal(err)
 	}
 
+	// Use HTTP so we can use HTTP_PROXY
+	cfg.VcapApplication.CAPIAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "https", "http", 1)
+	cfg.VcapApplication.LogCacheAddr = strings.Replace(cfg.VcapApplication.CAPIAddr, "api", "log-cache", 1)
+
 	return cfg
-}
-
-type addTokenDoer struct {
-	token string
-}
-
-func (d addTokenDoer) Do(r *http.Request) (*http.Response, error) {
-	r.Header.Set("Authorization", d.token)
-	return http.DefaultClient.Do(r)
 }
 
 type xyPair struct {
