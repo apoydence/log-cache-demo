@@ -79,7 +79,6 @@ func createQuery(u *url.URL) (string, error) {
 
 	sourceID, metric := resolveSourceID(values.Get("source_id")), values.Get("metric")
 
-	println(metric, sourceID)
 	return fmt.Sprintf(`%s{source_id="%s"}`, metric, sourceID), nil
 }
 
@@ -123,7 +122,7 @@ func drawChart(
 			}
 
 			go func(query string, color drawing.Color) {
-				result, err := c.PromQLRange(req.Context(), query, now.Add(-5*time.Minute), time.Now(), time.Second)
+				result, err := c.PromQLRange(req.Context(), query, now.Add(-5*time.Minute), now, time.Second)
 				if err != nil {
 					errs <- fmt.Errorf("failed to make request: %s", err)
 					return
@@ -163,12 +162,10 @@ func drawChart(
 				for _, p := range result.result.Data.Result {
 					s := p.(*faaspromql.Series)
 					for _, v := range s.Values {
-						i, err := v[0].Int64()
+						t, err := v[0].Float64()
 						if err != nil {
 							log.Panic(err)
 						}
-
-						t := float64(i / 1e6)
 
 						f, err := v[1].Float64()
 						if err != nil {
