@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/apoydence/cf-faas-log-cache/pkg/promql"
+	"github.com/poy/cf-faas-log-cache/pkg/promql"
 )
 
 func main() {

@@ -14,9 +14,9 @@ import (
 	"time"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
-	"github.com/apoydence/cf-faas-log-cache"
-	"github.com/apoydence/cf-faas-log-cache/pkg/promql"
-	gocapi "github.com/apoydence/go-capi"
+	"github.com/poy/cf-faas-log-cache"
+	"github.com/poy/cf-faas-log-cache/pkg/promql"
+	gocapi "github.com/poy/go-capi"
 	"github.com/wcharczuk/go-chart"
 	"github.com/wcharczuk/go-chart/drawing"
 )

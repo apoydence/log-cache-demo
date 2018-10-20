@@ -11,8 +11,8 @@ import (
 	"time"
 
 	envstruct "code.cloudfoundry.org/go-envstruct"
-	faaspromql "github.com/apoydence/cf-faas-log-cache"
-	gocapi "github.com/apoydence/go-capi"
+	faaspromql "github.com/poy/cf-faas-log-cache"
+	gocapi "github.com/poy/go-capi"
 )
 
 func main() {

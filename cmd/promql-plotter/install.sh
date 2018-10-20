@@ -25,7 +25,7 @@ echo "done building promql-plotter binary."
 
 # CF-Space-Security binaries
 echo "building CF-Space-Security binaries..."
-go get github.com/apoydence/cf-space-security/... &> /dev/null || fail "failed to get cf-space-security"
+go get github.com/poy/cf-space-security/... &> /dev/null || fail "failed to get cf-space-security"
 GOOS=linux go build -o $TEMP_DIR/proxy ../cf-space-security/cmd/proxy &> /dev/null || fail "failed to build cf-space-security proxy"
 echo "done building CF-Space-Security binaries."
 
